@@ -2,12 +2,15 @@
 
 name: CD
 
+# Reusable workflow — only cicd.yml may call this one, via "uses:".
 on:
-    workflow_run:
-        workflows: ["CI"]
-        types: [completed]
-        branches:
-            - 'main'
+    workflow_call:
+        inputs:
+            image_tag:
+                description: 'Tag to deploy. Leave blank for "latest".'
+                required: false
+                type: string
+                default: ''
 jobs:
     deploy:
         runs-on: self-hosted
@@ -25,6 +28,9 @@ jobs:
                 password: ${{ secrets.DOCKERHUB_TOKEN }}
             
             - name: Deploy the containers with Docker Compose
+              # docker-compose.yml falls back to :latest when IMAGE_TAG is empty.
+              env:
+                  IMAGE_TAG: ${{ inputs.image_tag }}
               run: |
                 docker compose pull
                 docker compose up -d

@@ -3,13 +3,9 @@
 
 name: CI
 
+# Reusable workflow — only cicd.yml may call this one, via "uses:".
 on:
-  push:
-    paths:
-      - '**'
-      - '!.github/workflows/**'
-    branches:
-      - main
+  workflow_call:
 
 jobs:
   # Github Runner
@@ -54,7 +50,7 @@ jobs:
           push: true
           tags: |
             ${{ vars.DOCKERHUB_USERNAME }}/kanvan-frontend:sha-${{ github.sha }}
-            ${{ vars.DOCKERHUB_USERNAME }}/kanvan-frontend${{ matrix.app }}:latest
+            ${{ vars.DOCKERHUB_USERNAME }}/kanvan-frontend:latest
   
   backend:
     runs-on: ubuntu-latest
@@ -97,6 +93,6 @@ jobs:
           push: true
           tags: |
             ${{ vars.DOCKERHUB_USERNAME }}/kanvan-backend:sha-${{ github.sha }}
-            ${{ vars.DOCKERHUB_USERNAME }}/kanvan-backend${{ matrix.app }}:latest
+            ${{ vars.DOCKERHUB_USERNAME }}/kanvan-backend:latest
             
 
