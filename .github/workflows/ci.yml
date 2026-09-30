@@ -47,6 +47,5 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: |
-            ${{ vars.DOCKERHUB_USERNAME }}/kanvan-frontend:sha-${{ github.sha }}
-            ${{ vars.DOCKERHUB_USERNAME }}/kanvan-frontend${{ matrix.app }}:latest
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/kanvan-frontend:sha-${{ github.sha }}
+            
