@@ -5,12 +5,7 @@ name: CD
 
 on:
     workflow_call:
-        inputs:
-            image_tag:
-                description: 'Tag to deploy. Leave blank for "latest".'
-                required: false
-                type: string
-                default: ''
+
 jobs:
     deploy:
         runs-on: self-hosted
