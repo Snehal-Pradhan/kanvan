@@ -14,4 +14,14 @@ jobs:
 
     secret-scanning:
         uses: ./.github/workflows/secret-scanning.yml
+    
+    dependency-checks:
+        uses: ./.github/workflows/secret-scanning.yml
 
+
+    sonar_scan:
+        uses: ./.github/workflows/sonar-scan.yml
+        secrets: inherit
+
+    code-tests:
+        uses: ./.github/workflows/code-tests.yml
