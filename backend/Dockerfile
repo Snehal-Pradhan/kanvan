@@ -1,0 +1,30 @@
+# NOTE: previously `dhi.io/golang:1-alpine` (Docker Hardened Images). That
+# registry needs an entitlement this account doesn't have, so we build on the
+# public image. Swap back if you get DHI access.
+FROM golang:1-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -o devboard-backend .
+
+FROM golang:1-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/devboard-backend ./devboard-backend
+
+# Ensure binary is executable
+RUN chmod +x ./devboard-backend
+
+# Run unprivileged. The public golang image has no `nonroot` account, so use the
+# standard nobody uid/gid that Alpine provides.
+USER 65534:65534
+
+EXPOSE 8080
+
+# Use exec form for proper signal handling
+ENTRYPOINT ["./devboard-backend"]
