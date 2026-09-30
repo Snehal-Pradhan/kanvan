@@ -1,37 +1,32 @@
-# Stage 1 — build the app
-# NOTE: previously `dhi.io/node:26-dev` (Docker Hardened Images), which needs an
-# entitlement this account lacks. The public `node` image already ships the full
-# toolchain, so there is no separate -dev variant to use here.
-FROM node:26 AS build
+# ==========================================
+# Stage 1: Build static assets
+# ==========================================
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install --legacy-peer-deps
-
-# Install vite explicitly if not already in package.json
-RUN npm list vite > /dev/null 2>&1 || npm install --no-save vite@5.4.11
+RUN npm ci --legacy-peer-deps
 
 COPY . .
 
 RUN npm run build
 
-# Stage 2 — slim runtime
-FROM node:26
+# ==========================================
+# Stage 2: Production Web Server
+# ==========================================
+FROM nginx:alpine AS runner
 
-WORKDIR /app
+# Remove default nginx static assets
+RUN rm -rf /usr/share/nginx/html/*
 
-# Copy built files from builder
-COPY --from=build /app/dist ./dist
+# Copy custom Nginx configuration listening on port 4173
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy all node_modules from builder (includes vite)
-COPY --from=build /app/node_modules ./node_modules
-
-COPY vite.preview.config.js ./vite.config.js
+# Copy compiled static output from build stage
+COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 4173
 
-# Use exec form for proper signal handling
-ENTRYPOINT ["node", "--no-warnings"]
-CMD ["./node_modules/.bin/vite", "preview", "--host", "0.0.0.0", "--port", "4173"]
+CMD ["nginx", "-g", "daemon off;"]
