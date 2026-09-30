@@ -1,7 +1,9 @@
 # Goal - To run End to End DevSecOps CI Pipeline
 
 name: DevSecOps
-on: [workflow_dispatch]
+on:
+    push:
+        branches: [main]
 
 jobs:
     code-quality:
@@ -34,4 +36,10 @@ jobs:
         uses: ./.github/workflows/deploy.yml
         needs: [docker-push]
         secrets: inherit
+    
+    dast:
+        uses: ./.github/workflows/dast.yml
+        needs: [deploy]
+        secrets: inherit
+
     
