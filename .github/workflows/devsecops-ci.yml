@@ -20,7 +20,6 @@ jobs:
         uses: ./.github/workflows/secret-scanning.yml
 
 
-
     docker-checks:
         uses: ./.github/workflows/docker-scans.yml
         secrets: inherit
