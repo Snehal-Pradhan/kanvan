@@ -4,11 +4,6 @@ name: DevSecOps
 on: [workflow_dispatch]
 
 jobs:
-    say-hello:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Say Hello
-              run: echo "hello"
     code-quality:
         uses: ./.github/workflows/code-quality.yml
 
@@ -29,3 +24,4 @@ jobs:
     docker-checks:
         uses: ./.github/workflows/docker-scans.yml
         secrets: inherit
+ 

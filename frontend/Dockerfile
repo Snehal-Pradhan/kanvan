@@ -1,6 +1,4 @@
-# ==========================================
-# Stage 1: Build static assets
-# ==========================================
+
 FROM node:22-alpine AS build
 
 WORKDIR /app
@@ -13,9 +11,6 @@ COPY . .
 
 RUN npm run build
 
-# ==========================================
-# Stage 2: Production Web Server
-# ==========================================
 FROM nginx:alpine AS runner
 
 # Remove default nginx static assets
