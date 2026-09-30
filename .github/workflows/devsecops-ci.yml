@@ -24,4 +24,11 @@ jobs:
     docker-checks:
         uses: ./.github/workflows/docker-scans.yml
         secrets: inherit
+
+    docker-push:
+        uses: ./.github/workflows/docker-push.yml
+        needs: [code-quality,code-tests,docker-checks,dependency-checks,secret-scanning,sonar_scan]
+    
+    deploy:
+        uses: ./.github/workflows/deploy.yml
  
