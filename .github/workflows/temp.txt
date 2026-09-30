@@ -32,3 +32,34 @@
         needs: [deploy]
         uses: ./.github/workflows/dast.yml
         secrets: inherit 
+
+        --
+
+
+
+
+    code-quality:
+        uses: ./.github/workflows/code-quality.yml
+
+    secret-scanning:
+        uses: ./.github/workflows/secret-scanning.yml
+    
+    dependency-checks:
+        uses: ./.github/workflows/secret-scanning.yml
+
+
+    docker-checks:
+        uses: ./.github/workflows/docker-scans.yml
+        secrets: inherit
+    
+    sonar_scan:
+        uses: ./.github/workflows/sonar-scan.yml
+        secrets: inherit
+
+    code-tests:
+        uses: ./.github/workflows/code-tests.yml
+    
+    # push to dockerhub
+    docker-push:
+        uses: ./.github/workflows/docker-push.yml
+        needs: [code-quality,code-tests,docker-checks,dependency-checks,secret-scanning,sonar_scan]
