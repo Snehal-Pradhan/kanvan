@@ -4,7 +4,9 @@
 name: CI
 
 on:
-  workflow_dispatch
+  push:
+    branches:
+      - main
 
 jobs:
   # Github Runner
