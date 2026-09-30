@@ -10,13 +10,6 @@ on:
       - '!.github/workflows/**'
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      image_tag:
-        description: 'Image tag to deploy (blank = the sha tag CI just pushed)'
-        required: false
-        type: string
-        default: ''
 
 jobs:
   ci:
