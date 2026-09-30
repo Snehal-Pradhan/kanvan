@@ -22,6 +22,10 @@ jobs:
 
     sonar_scan:
         uses: ./.github/workflows/sonar-scan.yml
+        # Sonar consumes the coverage-reports artifact that code-tests
+        # uploads — without this ordering the download races the upload
+        # and fails with "Artifact not found".
+        needs: [code-tests]
         secrets: inherit
 
     code-tests:
