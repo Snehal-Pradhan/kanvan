@@ -14,15 +14,15 @@ jobs:
         steps:
             - name: Code Checkout
               uses: actions/checkout@v7
-            
-            - name: Download Coverage Reports
-              # Uploaded by code-tests.yml in the same run. Extracts to the
-              # workspace root, matching the paths in sonar-project.properties.
-              uses: actions/download-artifact@v4
+
+            - name: Cache SonarQube Scanner
+              # The scanner binary downloads on every run otherwise.
+              uses: actions/cache@v4
               with:
-                name: coverage-reports
-                path: .
-            
+                path: ~/.sonar/cache
+                key: sonar-scanner
+                restore-keys: sonar-scanner
+
             - name: SonarQube Scan
               uses: SonarSource/sonarqube-scan-action@v8.2.0
               env:

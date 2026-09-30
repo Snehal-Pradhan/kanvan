@@ -20,24 +20,65 @@ jobs:
             - name: Code Checkout
               uses: actions/checkout@v7
 
-            - name: ${{matrix.folders}}Dockerfile Lint
+            - name: ${{matrix.folders}} Dockerfile Lint
               uses: hadolint/hadolint-action@v3.1.0
               with:
-                dockerfile: ${{matrix.folders}}/Dockerfile 
-        
-            - name: Docker Setup [Login]
-              uses: docker/login-action@v4
-              with:
-                username: ${{ vars.DOCKERHUB_USERNAME }}
-                password: ${{ secrets.DOCKERHUB_TOKEN }}
+                dockerfile: ${{matrix.folders}}/Dockerfile
+                # sarif report for the artifact — gating is unchanged (hadolint
+                # still fails the job above its default threshold).
+                format: sarif
+                output-file: hadolint-report.sarif
 
-            - name: Docker Build ${{matrix.folders}}
-              run: docker build -t ${{ vars.DOCKERHUB_USERNAME }}/kanvan-${{matrix.folders}}:latest .
-              working-directory: ${{matrix.folders}}
-            
-            - name: Run Trivy vulnerability scanner
+            # No docker login needed here: base images are public and this
+            # build only stays local (load) — nothing is pushed or pulled.
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Docker Build ${{matrix.folders}} (layer-cached)
+              uses: docker/build-push-action@v6
+              with:
+                context: ./${{matrix.folders}}
+                tags: ${{ vars.DOCKERHUB_USERNAME }}/kanvan-${{matrix.folders}}:latest
+                push: false
+                # load keeps the image on the runner for Trivy to scan.
+                load: true
+                # GitHub Actions layer cache, one scope per image. docker-push
+                # reuses the same scopes, so its build is nearly all hits.
+                cache-from: type=gha,scope=kanvan-${{matrix.folders}}
+                cache-to: type=gha,scope=kanvan-${{matrix.folders}},mode=max
+
+            - name: Generate Trivy SARIF Report
+              # Evidence, not a gate (exit 0) — runs even if a step above
+              # failed, so the report artifact is always ready.
+              if: always()
               uses: aquasecurity/trivy-action@v0.36.0
               with:
+                image-ref: ${{ vars.DOCKERHUB_USERNAME }}/kanvan-${{matrix.folders}}:latest
+                format: 'sarif'
+                output: 'trivy-report.sarif'
+                exit-code: '0'
+                ignore-unfixed: true
+                vuln-type: 'os,library'
+                severity: 'CRITICAL,HIGH'
+                limit-severities-for-sarif: true
+
+            - name: Upload Scan Reports
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                name: docker-scan-${{matrix.folders}}
+                path: |
+                    hadolint-report.sarif
+                    trivy-report.sarif
+                retention-days: 5
+                if-no-files-found: warn
+
+            - name: Run Trivy vulnerability scanner (gate)
+              # Gate LAST so the reports above are uploaded even when this
+              # fails the job. trivy is already installed — skip re-setup.
+              uses: aquasecurity/trivy-action@v0.36.0
+              with:
+                skip-setup-trivy: true
                 image-ref: ${{ vars.DOCKERHUB_USERNAME }}/kanvan-${{matrix.folders}}:latest
                 format: 'table'
                 exit-code: '1'
