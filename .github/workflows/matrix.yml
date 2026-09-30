@@ -22,8 +22,9 @@ jobs:
             - name: Setup Go
               uses: actions/setup-go@v6
               with:
+                # Matrix version only — go-version-file would override it and
+                # silently pin every job to go.mod's version.
                 go-version: ${{matrix.go}}
-                go-version-file: 'go.mod'
                 cache-dependency-path: backend/go.sum
 
             - name: Run Go Formatter

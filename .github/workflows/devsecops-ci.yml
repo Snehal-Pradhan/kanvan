@@ -13,7 +13,7 @@ jobs:
         uses: ./.github/workflows/secret-scanning.yml
     
     dependency-checks:
-        uses: ./.github/workflows/secret-scanning.yml
+        uses: ./.github/workflows/dependency-scan.yml
 
 
     sonar_scan:
@@ -35,6 +35,10 @@ jobs:
     deploy:
         uses: ./.github/workflows/deploy.yml
         needs: [docker-push]
+        with:
+            # Pin the deploy to the exact commit that just passed CI —
+            # docker-push tagged it sha-<sha> alongside latest.
+            image_tag: sha-${{ github.sha }}
         secrets: inherit
     
     dast:

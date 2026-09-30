@@ -5,6 +5,14 @@ name: CD
 
 on:
     workflow_call:
+        inputs:
+            # Which image tag to pull and deploy. docker-push builds both
+            # sha-<commit> and latest — pin the deploy to the exact commit
+            # that passed CI, so DAST scans what was actually built.
+            image_tag:
+                description: 'Image tag to deploy (e.g. sha-<commit sha>)'
+                type: string
+                default: 'latest'
 
 jobs:
     deploy:
@@ -23,7 +31,8 @@ jobs:
                 password: ${{ secrets.DOCKERHUB_TOKEN }}
             
             - name: Deploy the containers with Docker Compose
-              # docker-compose.yml falls back to :latest when IMAGE_TAG is empty.
+              # IMAGE_TAG comes from the caller — devsecops-ci passes the
+              # sha-<commit> tag that docker-push just built and pushed.
               env:
                   IMAGE_TAG: ${{ inputs.image_tag }}
               run: |
