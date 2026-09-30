@@ -29,6 +29,4 @@ jobs:
         uses: ./.github/workflows/docker-push.yml
         needs: [code-quality,code-tests,docker-checks,dependency-checks,secret-scanning,sonar_scan]
     
-    deploy:
-        uses: ./.github/workflows/deploy.yml
-        needs: [docker-push]
+    

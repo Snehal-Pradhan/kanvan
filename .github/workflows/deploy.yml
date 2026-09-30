@@ -2,7 +2,7 @@
 
 name: CD
 
-# Reusable workflow — only cicd.yml may call this one, via "uses:".
+
 on:
     workflow_call:
         inputs:
