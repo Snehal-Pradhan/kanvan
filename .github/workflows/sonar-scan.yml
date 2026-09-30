@@ -2,7 +2,7 @@
 name: Sonar Qube Scan
 
 on:
-    workflow_dispatch:
+    workflow_call:
 
 
 jobs:
