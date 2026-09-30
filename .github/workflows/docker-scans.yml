@@ -5,6 +5,10 @@ name: Docker Scan
 on:
     workflow_call
 
+# Least privilege — the token only needs to read the repo.
+permissions:
+    contents: read
+
 jobs:
     docker-file-lint-and-scan:
         runs-on: ubuntu-latest 

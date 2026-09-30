@@ -5,6 +5,9 @@ name: Code Quality
 on:
     workflow_call:
 
+# Least privilege — the token only needs to read the repo.
+permissions:
+    contents: read
 
 jobs:
     sast:
@@ -37,8 +40,16 @@ jobs:
                 go-version-file: 'backend/go.mod'
                 cache-dependency-path: backend/go.sum
       
-            - name: Run Go Formatter
-              run: go fmt
+            - name: Run Go Formatter Check
+              # `go fmt` rewrites files and exits 0 — it never fails CI. This
+              # gates instead: list files needing formatting, fail if any.
+              run: |
+                unformatted=$(gofmt -l .)
+                if [ -n "$unformatted" ]; then
+                  echo "Files needing gofmt:"
+                  echo "$unformatted"
+                  exit 1
+                fi
               working-directory: backend
 
             - name: Run Go Vet

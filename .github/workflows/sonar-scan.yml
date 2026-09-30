@@ -4,6 +4,9 @@ name: Sonar Qube Scan
 on:
     workflow_call:
 
+# Least privilege — the scan only needs to read the repo.
+permissions:
+    contents: read
 
 jobs:
     sonar-scan:
@@ -11,6 +14,14 @@ jobs:
         steps:
             - name: Code Checkout
               uses: actions/checkout@v7
+            
+            - name: Download Coverage Reports
+              # Uploaded by code-tests.yml in the same run. Extracts to the
+              # workspace root, matching the paths in sonar-project.properties.
+              uses: actions/download-artifact@v4
+              with:
+                name: coverage-reports
+                path: .
             
             - name: SonarQube Scan
               uses: SonarSource/sonarqube-scan-action@v8.2.0

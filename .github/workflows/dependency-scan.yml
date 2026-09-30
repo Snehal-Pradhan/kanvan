@@ -5,6 +5,10 @@ name: Dependency scan
 on:
     workflow_call:
 
+# Least privilege — the token only needs to read the repo.
+permissions:
+    contents: read
+
 jobs:
     dependency-scan:
         runs-on: ubuntu-latest
@@ -19,7 +23,9 @@ jobs:
                 cache-dependency-path: backend/go.sum
 
             - name: Install Govulncheck
-              run: go install golang.org/x/vuln/cmd/govulncheck@1.1.4
+              # NOTE the leading `v` — Go module versions need it (@1.1.4
+              # fails with "unknown revision").
+              run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
             
             - name: Go Vulncheck
               continue-on-error: true

@@ -36,5 +36,13 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.js'],
     css: false,
+    // lcov report feeds SonarQube (sonar.javascript.lcov.reportPaths in
+    // sonar-project.properties); `text` keeps a summary in the CI logs.
+    // vitest v4 needs an explicit include, otherwise nothing is instrumented
+    // and the lcov report comes out empty.
+    coverage: {
+      include: ['src/**'],
+      reporter: ['text', 'lcov'],
+    },
   },
 });

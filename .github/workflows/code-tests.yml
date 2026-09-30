@@ -2,7 +2,11 @@ name: Code Tests
 
 on:
     workflow_call:
-    
+
+# Least privilege — the token only needs to read the repo.
+permissions:
+    contents: read
+
 jobs:
     test:
         
@@ -24,25 +28,31 @@ jobs:
               run: npm ci --legacy-peer-deps
               working-directory: frontend
             
-            - name: Run Frontend Tests
-              run: npm run test
+            - name: Run Frontend Tests (with coverage)
+              # test:coverage = vitest run --coverage → frontend/coverage/lcov.info
+              run: npm run test:coverage
               working-directory: frontend
-            
+             
             - name: Setup Go
               uses: actions/setup-go@v6
               with:
                 go-version-file: 'backend/go.mod'
                 cache-dependency-path: backend/go.sum
-      
-            - name: Run Go Formatter
-              run: go fmt
+        
+            - name: Run Backend Tests (with coverage)
+              run: go test ./... -coverprofile=coverage.out
               working-directory: backend
 
-            - name: Run Go Vet
-              run: go vet
-              working-directory: backend
-      
-            - name: Run Backend Tests
-              run: go test
-              working-directory: backend
+            - name: Upload Coverage Reports
+              # Sonar's job (sonar-scan.yml) downloads this artifact and feeds
+              # it into the scan via sonar-project.properties.
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                name: coverage-reports
+                path: |
+                    backend/coverage.out
+                    frontend/coverage/lcov.info
+                retention-days: 5
+                if-no-files-found: warn
 

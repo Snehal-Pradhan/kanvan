@@ -5,6 +5,11 @@ name: Docker Push
 on:
   workflow_call:
 
+# Least privilege — the token only needs to read the repo
+# (pushes authenticate with DOCKERHUB_TOKEN, not GITHUB_TOKEN).
+permissions:
+  contents: read
+
 jobs:
   docker-build-push:
     runs-on: ubuntu-latest

@@ -5,6 +5,10 @@ on:
     push:
       branches: [main]
 
+# Least privilege for the whole run — called workflows inherit this floor.
+permissions:
+    contents: read
+
 jobs:
     code-quality:
         uses: ./.github/workflows/code-quality.yml
