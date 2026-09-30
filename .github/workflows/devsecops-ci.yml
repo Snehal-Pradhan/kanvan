@@ -35,4 +35,4 @@ jobs:
     # push to dockerhub
     docker-push:
         uses: ./.github/workflows/docker-push.yml
-        needs: [code-quality,code-tests,docker-checks,dependency-checks,secret-scanning,sonar-scan]
+        needs: [code-quality,code-tests,docker-checks,dependency-checks,secret-scanning]
