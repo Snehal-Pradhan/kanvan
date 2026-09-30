@@ -25,6 +25,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           target: 'http://${{ secrets.EC2_HOST }}:8080'
-          fail_action: false
+          # Gate on FAIL-level alerts only — `-I` stops warnings from failing
+          # the job, so noisy-but-harmless findings don't block a deploy.
+          # The action auto-attaches the HTML report as the `zap_scan` artifact.
+          fail_action: true
+          cmd_options: '-I'
           allow_issue_writing: false
                 

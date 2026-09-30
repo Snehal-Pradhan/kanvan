@@ -9,6 +9,12 @@ on:
 permissions:
     contents: read
 
+# One pipeline run per branch — a new push cancels the superseded run
+# instead of racing it on the single self-hosted deploy runner.
+concurrency:
+    group: devsecops-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
     code-quality:
         uses: ./.github/workflows/code-quality.yml

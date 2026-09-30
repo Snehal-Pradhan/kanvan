@@ -47,12 +47,25 @@ jobs:
                 cache-from: type=gha,scope=kanvan-${{matrix.folders}}
                 cache-to: type=gha,scope=kanvan-${{matrix.folders}},mode=max
 
+            - name: Generate SBOM (CycloneDX)
+              # Software Bill of Materials for the image — what's actually
+              # inside (base distro + every library), the supply-chain
+              # inventory DevSecOps pipelines are expected to keep.
+              uses: aquasecurity/trivy-action@v0.36.0
+              with:
+                image-ref: ${{ vars.DOCKERHUB_USERNAME }}/kanvan-${{matrix.folders}}:latest
+                format: 'cyclonedx'
+                output: 'sbom.cyclonedx.json'
+                exit-code: '0'
+
             - name: Generate Trivy SARIF Report
               # Evidence, not a gate (exit 0) — runs even if a step above
               # failed, so the report artifact is always ready.
               if: always()
               uses: aquasecurity/trivy-action@v0.36.0
               with:
+                # trivy was already installed by the SBOM step.
+                skip-setup-trivy: true
                 image-ref: ${{ vars.DOCKERHUB_USERNAME }}/kanvan-${{matrix.folders}}:latest
                 format: 'sarif'
                 output: 'trivy-report.sarif'
@@ -70,6 +83,7 @@ jobs:
                 path: |
                     hadolint-report.sarif
                     trivy-report.sarif
+                    sbom.cyclonedx.json
                 retention-days: 5
                 if-no-files-found: warn
 
