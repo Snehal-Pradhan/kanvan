@@ -31,4 +31,4 @@ jobs:
     
     deploy:
         uses: ./.github/workflows/deploy.yml
- 
+        needs: [docker-push]
