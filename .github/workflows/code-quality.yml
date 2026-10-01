@@ -33,7 +33,7 @@ jobs:
               working-directory: frontend
           
             - name: Setup Go
-              uses: actions/setup-go@v6
+              uses: actions/setup-go@v7
               with:
                 # go-version-file alone — it wins over go-version anyway, and
                 # pins the toolchain to exactly what backend/go.mod declares.
