@@ -26,25 +26,31 @@ jobs:
             - name: Code Checkout
               uses: actions/checkout@v7
 
-            - name: Copy Example Env to main Env
-              # Guard: only seed .env on first deploy. A plain `cp` would
-              # silently overwrite any manual tweaks on the server.
-              run: test -f .env || cp .env.example .env
+            - name: Prepare Prod Env
+              # Kept OUTSIDE the workspace (~/.kanvan/prod.env): actions/checkout
+              # cleans untracked files every run, so a workspace .env would be
+              # deleted and reseeded each deploy. Out here it survives, so the
+              # guard is meaningful and manual tweaks on the server persist.
+              run: |
+                mkdir -p ~/.kanvan
+                test -f ~/.kanvan/prod.env || cp .env.example ~/.kanvan/prod.env
 
             - name: Docker Setup [Login]
-              uses: docker/login-action@v3
+              uses: docker/login-action@v4
               with:
                 username: ${{ vars.DOCKERHUB_USERNAME }}
                 password: ${{ secrets.DOCKERHUB_TOKEN }}
-            
+
             - name: Deploy the containers with Docker Compose
               # IMAGE_TAG comes from the caller — devsecops-ci passes the
               # sha-<commit> tag that docker-push just built and pushed.
               env:
                   IMAGE_TAG: ${{ inputs.image_tag }}
               run: |
+                EF="--env-file $HOME/.kanvan/prod.env"
+
                 # 1. Record what was running before this deploy (rollback point).
-                cid=$(docker compose ps -q backend 2>/dev/null || true)
+                cid=$(docker compose $EF ps -q backend 2>/dev/null || true)
                 prev=latest
                 if [ -n "$cid" ]; then
                   prev=$(docker inspect -f '{{.Config.Image}}' "$cid")
@@ -52,8 +58,8 @@ jobs:
                 fi
 
                 # 2. Deploy the new images.
-                docker compose pull
-                docker compose up -d
+                docker compose $EF pull
+                docker compose $EF up -d
 
                 # 3. Health check — frontend page and backend /health through
                 #    the host ports. If the new deploy doesn't come up, roll
@@ -64,8 +70,8 @@ jobs:
                 }
                 if ! check; then
                   echo "::error::deploy of ${{ inputs.image_tag }} failed its health check — rolling back to ${prev}"
-                  IMAGE_TAG="$prev" docker compose pull
-                  IMAGE_TAG="$prev" docker compose up -d
+                  IMAGE_TAG="$prev" docker compose $EF pull
+                  IMAGE_TAG="$prev" docker compose $EF up -d
                   exit 1
                 fi
 

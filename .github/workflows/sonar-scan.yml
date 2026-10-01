@@ -17,7 +17,7 @@ jobs:
 
             - name: Cache SonarQube Scanner
               # The scanner binary downloads on every run otherwise.
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                 path: ~/.sonar/cache
                 key: sonar-scanner
@@ -25,6 +25,12 @@ jobs:
 
             - name: SonarQube Scan
               uses: SonarSource/sonarqube-scan-action@v8.2.0
+              with:
+                # Make the quality gate BINDING: the job polls SonarQube for
+                # the gate result and FAILS if it's red. Without this, the
+                # scan uploads results nobody enforces.
+                args: >-
+                  -Dsonar.qualitygate.wait=true
               env:
                 SONAR_TOKEN: ${{secrets.SONAR_TOKEN}}
                 SONAR_HOST_URL: ${{secrets.SONAR_HOST_URL}}

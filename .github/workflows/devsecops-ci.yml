@@ -42,18 +42,44 @@ jobs:
         needs: [code-quality,code-tests,docker-checks,dependency-checks,secret-scanning,sonar_scan]
         secrets: inherit
     
+    # ── Promotion path: staging → DAST gate → prod ──────────────────────
+    # Staging gets the exact sha-tag first, DAST scans it on the runner,
+    # and only a clean scan promotes the same tag to production.
+    deploy-staging:
+        uses: ./.github/workflows/deploy-staging.yml
+        needs: [docker-push]
+        with:
+            image_tag: sha-${{ github.sha }}
+        secrets: inherit
+
+    dast:
+        uses: ./.github/workflows/dast.yml
+        # DAST now gates PROD: it scans the staging deployment of the exact
+        # sha-tag; deploy.yml (production) only runs after this passes.
+        needs: [deploy-staging]
+
     deploy:
         uses: ./.github/workflows/deploy.yml
-        needs: [docker-push]
+        needs: [dast]
         with:
             # Pin the deploy to the exact commit that just passed CI —
             # docker-push tagged it sha-<sha> alongside latest.
             image_tag: sha-${{ github.sha }}
         secrets: inherit
-    
-    dast:
-        uses: ./.github/workflows/dast.yml
+
+    notify:
+        # Fires when any ancestor job failed — including jobs that were
+        # skipped because an earlier one failed. Needs SLACK_WEBHOOK_URL
+        # (incoming webhook) in repo secrets.
+        if: failure()
         needs: [deploy]
-        secrets: inherit
+        runs-on: ubuntu-latest
+        steps:
+            - name: Notify Slack on pipeline failure
+              run: |
+                payload=$(printf '{"text":"DevSecOps pipeline FAILED on main - run https://github.com/%s/actions/runs/%s (by %s)"}' \
+                  "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$GITHUB_ACTOR")
+                curl -sf -X POST -H 'Content-Type: application/json' \
+                  -d "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}"
 
     

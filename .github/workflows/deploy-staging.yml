@@ -1,0 +1,57 @@
+# Goal: Deploy to STAGING first — an isolated compose project on the same
+# self-hosted runner — so DAST scans a pre-prod copy before anything reaches
+# production (deploy.yml). Same images, different ports and database volume.
+
+name: CD (Staging)
+
+on:
+    workflow_call:
+        inputs:
+            # Same contract as deploy.yml — the exact sha-tag that CI built.
+            image_tag:
+                description: 'Image tag to deploy (e.g. sha-<commit sha>)'
+                type: string
+                default: 'latest'
+
+# Least privilege — the token only needs to read the repo
+# (image pulls authenticate with DOCKERHUB_TOKEN, not GITHUB_TOKEN).
+permissions:
+    contents: read
+
+jobs:
+    deploy-staging:
+        runs-on: self-hosted
+        steps:
+            - name: Code Checkout
+              uses: actions/checkout@v7
+
+            - name: Prepare Staging Env
+              # Kept OUTSIDE the workspace (~/.kanvan/staging.env): checkout
+              # cleans untracked files every run, so it must live where it
+              # survives. Isolated from prod: separate compose project
+              # (kanvan-staging) and host ports (8090/8091/5434).
+              run: |
+                mkdir -p ~/.kanvan
+                test -f ~/.kanvan/staging.env || cp .env.example ~/.kanvan/staging.env
+                sed -i 's/^FRONTEND_HOST_PORT=.*/FRONTEND_HOST_PORT=8090/;s/^BACKEND_HOST_PORT=.*/BACKEND_HOST_PORT=8091/;s/^POSTGRES_HOST_PORT=.*/POSTGRES_HOST_PORT=5434/' ~/.kanvan/staging.env
+
+            - name: Docker Setup [Login]
+              uses: docker/login-action@v4
+              with:
+                username: ${{ vars.DOCKERHUB_USERNAME }}
+                password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Deploy Staging with Docker Compose
+              env:
+                  IMAGE_TAG: ${{ inputs.image_tag }}
+              run: |
+                EF="--env-file $HOME/.kanvan/staging.env"
+                docker compose $EF -p kanvan-staging pull
+                docker compose $EF -p kanvan-staging up -d
+
+                # Staging health gate. No rollback logic here on purpose: a
+                # failed staging deploy never touched prod, and the next
+                # push rebuilds staging from scratch.
+                timeout 90s bash -c 'until curl -sf http://localhost:8090/ >/dev/null; do sleep 3; done' && \
+                timeout 30s bash -c 'until curl -sf http://localhost:8091/health >/dev/null; do sleep 3; done' || \
+                  { echo "::error::staging deploy of ${{ inputs.image_tag }} failed its health check"; exit 1; }

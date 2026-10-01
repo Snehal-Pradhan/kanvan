@@ -258,6 +258,83 @@ themes.
 
 ## CI/CD DevSecOps Setup
 
+Every push to `main` runs the full DevSecOps pipeline in
+`.github/workflows/devsecops-ci.yml` — it composes the reusable workflows in
+`.github/workflows/` into one graph:
+
+```
+push to main
+  ├─ code-quality       ESLint + gofmt gate (fails on unformatted code) + go vet
+  ├─ secret-scanning    Gitleaks over the full git history
+  ├─ dependency-scan    govulncheck (Go) + npm audit, report as artifact
+  ├─ code-tests         vitest + go test, both with coverage reports as artifacts
+  ├─ sonar_scan         SonarQube SAST + quality gate (fails if the gate is red)
+  ├─ docker-checks      hadolint + build (layer-cached) + SBOM + Trivy gate
+  │                     on CRITICAL, SARIF reports as artifacts
+  │                     (backend and frontend run as a matrix)
+  ▼ all of the above green
+docker-push             builds & pushes kanvan-backend / kanvan-frontend
+  │                     tagged sha-<commit> and latest (GitHub Actions layer cache)
+  ▼
+deploy-staging          staging rollout on the self-hosted runner — separate
+  │                     compose project (ports 8090/8091, own database) + health check
+  ▼
+dast                    OWASP ZAP baseline scan against STAGING — this gates prod:
+  │                     FAIL-level alerts stop the pipeline before users see anything
+  ▼
+deploy                  prod rollout of the SAME sha-<commit> tag, health-checked;
+  │                     if it doesn't come up healthy it rolls back to the previous
+  │                     tag automatically and fails the run
+  ▼
+notify                  posts to Slack if ANY job in the run failed
+
+nightly (03:00 UTC): scheduled-scan re-scans the images actually deployed in
+                     prod — catches CVEs published after the images were built
+weekly:              dependabot keeps actions, npm packages, Go modules and
+                     Dockerfile base images updated
+```
+
+### Why it's shaped this way
+
+- **Every stage gates.** A scanner that can't fail anything is a suggestion
+  box — hadolint, gitleaks, govulncheck/npm audit, Trivy, Sonar's quality gate
+  and ZAP all fail the pipeline when they find something above their
+  threshold.
+- **Staging before prod.** DAST scans an isolated staging environment (same
+  runner, separate compose project `kanvan-staging`, separate database) so a
+  bad release never reaches users. Prod only gets the exact `sha-<commit>`
+  tag that passed every check — never a moving `latest`.
+- **Rollback is automatic.** The prod deploy health-checks the new containers;
+  if they don't come up, it redeploys the previous tag and fails the job. Old
+  `sha-*` images are kept on the runner on purpose (they're the rollback
+  points); only dangling images are pruned.
+- **Reports are artifacts.** Dependency scan, hadolint, Trivy, SBOM (CycloneDX),
+  ZAP and coverage reports are all attached to each run — even red runs —
+  under the run's *Artifacts* section.
+- **Caching everywhere.** npm packages, Go modules, Sonar scanner, Trivy's
+  vulnerability DB and Docker build layers (GitHub Actions cache, one scope
+  per image) — that's why the full pipeline finishes in ~3 minutes.
+- **Least privilege.** Every workflow runs with `permissions: contents: read`.
+- **One run at a time.** A `concurrency` group cancels superseded runs so two
+  pushes can't race on the single self-hosted runner.
+
+### Required GitHub configuration
+
+| Where | Name | Used for |
+| ----- | ---- | -------- |
+| Secrets | `SONAR_TOKEN`, `SONAR_HOST_URL` | SonarQube scan + quality gate |
+| Secrets | `DOCKERHUB_TOKEN` | push/deploy images |
+| Secrets | `SLACK_WEBHOOK_URL` | failure notifications |
+| Variables | `DOCKERHUB_USERNAME` | image names |
+| Runner | self-hosted runner on the EC2 host | staging + prod deploy, DAST, scheduled scan |
+
+The runner keeps its environment files at `~/.kanvan/prod.env` and
+`~/.kanvan/staging.env` (seeded from `.env.example` on first deploy) so they
+survive workspaces being cleaned between runs.
+
+To fire the nightly prod re-scan manually: **Actions → Scheduled Scan → Run
+workflow**.
+
 The repository contains GitHub Actions workflows configured with SonarQube (SAST) and OWASP ZAP (DAST) scanning.
 
 ### How to Install and Set Up SonarQube on EC2
@@ -302,5 +379,25 @@ To allow the CI pipeline to build and push images to Docker Hub:
    - `DOCKERHUB_USERNAME`: Your Docker Hub username.
 3. Under the **Secrets** tab, add:
    - `DOCKERHUB_TOKEN`: A Personal Access Token (PAT) generated from Docker Hub.
+
+### How to configure Slack notifications
+
+The pipeline posts to Slack when any job fails:
+
+1. **Create a webhook app** — at [api.slack.com/apps](https://api.slack.com/apps),
+   *Create New App* → *From scratch* → name it → pick your workspace.
+2. **Enable incoming webhooks** — in the app under *Features → Incoming
+   Webhooks*, toggle **Activate Incoming Webhooks** ON.
+3. **Add it to a channel** — *Add New Webhook to Workspace* → pick a channel
+   (e.g. `#ci-alerts`).
+4. **Add the secret to GitHub**:
+   ```bash
+   gh secret set SLACK_WEBHOOK_URL   # paste the hooks.slack.com URL
+   ```
+   Test the webhook with curl before adding it, if you like:
+   ```bash
+   curl -X POST -H 'Content-type: application/json' \
+     -d '{"text":"kanvan-ci webhook works"}' <YOUR_WEBHOOK_URL>
+   ```
 
 

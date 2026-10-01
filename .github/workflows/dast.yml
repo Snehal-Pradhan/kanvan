@@ -1,4 +1,6 @@
-# Goal - To ensure my running application is free from OWASP top 10 security issues
+# Goal - To ensure the application is free from OWASP top 10 security issues
+# BEFORE it reaches production — this scans the staging deployment
+# (deploy-staging.yml) and prod (deploy.yml) only runs after it passes.
 
 name: OWASP ZAP DAST Scan
 
@@ -11,24 +13,23 @@ permissions:
 
 jobs:
   scan:
-    runs-on: ubuntu-latest
+    # Self-hosted on purpose: staging listens on localhost:8090 of the deploy
+    # runner, so the scan must run next to it. That also keeps the staging
+    # environment off the public internet.
+    runs-on: self-hosted
     steps:
-      - name: Code Checkout 
-        uses: actions/checkout@v4
-      
-      - name: Wait for services to be healthy
+      - name: Wait for staging to be healthy
         run: |
-          timeout 60s bash -c 'until curl -s --fail http://${{ secrets.EC2_HOST }}:8080; do sleep 2; done'
-      
+          timeout 60s bash -c 'until curl -sf http://localhost:8090/ >/dev/null; do sleep 2; done'
+
       - name: OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.14.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          target: 'http://${{ secrets.EC2_HOST }}:8080'
+          target: 'http://localhost:8090'
           # Gate on FAIL-level alerts only — `-I` stops warnings from failing
           # the job, so noisy-but-harmless findings don't block a deploy.
           # The action auto-attaches the HTML report as the `zap_scan` artifact.
           fail_action: true
           cmd_options: '-I'
           allow_issue_writing: false
-                

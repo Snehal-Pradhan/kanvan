@@ -1,0 +1,46 @@
+# Goal - Keep the pipeline and its dependencies updated automatically, so
+# nobody has to chase deprecations by hand (like the Node-20 action warnings).
+# Dependabot opens PRs; when they merge, the full DevSecOps pipeline runs on
+# the push to main — staging + DAST + rollback catch a bad update before
+# (or instead of) users seeing it.
+
+version: 2
+updates:
+  # GitHub Actions — bumps checkout/setup-node/trivy/... pins
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]
+
+  # Frontend npm packages
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    # npm ci requires lockfile updates too — grouped so one PR keeps
+    # package.json and package-lock.json in sync.
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  # Backend Go modules
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      gomod-minor-patch:
+        update-types: [minor, patch]
+
+  # Base images in the Dockerfiles (golang, node, nginx, postgres tags)
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: weekly

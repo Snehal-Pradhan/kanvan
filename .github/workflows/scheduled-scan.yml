@@ -1,0 +1,74 @@
+# Goal - CVEs are published every day, AFTER images were built and scanned in
+# CI. This workflow re-scans what is ACTUALLY RUNNING in production on the
+# self-hosted runner — the exact image:tag of each deployed container — and
+# alerts Slack when a new CRITICAL lands in a deployed image.
+
+name: Scheduled Scan
+
+on:
+  schedule:
+    # 03:00 UTC daily — scans overnight, findings are in Slack before the
+    # morning standup. Scheduled workflows only run on the default branch.
+    - cron: '0 3 * * *'
+  workflow_dispatch:  # manual trigger for demos/testing
+
+# Least privilege — the token only needs to read the repo.
+permissions:
+    contents: read
+
+# Don't stack scans if one is slow; the next scheduled run just waits.
+concurrency:
+    group: scheduled-scan
+
+jobs:
+    scan-deployed-images:
+        runs-on: self-hosted
+        strategy:
+            fail-fast: false
+            matrix:
+                service: ['backend', 'frontend']
+        steps:
+            - name: Code Checkout
+              # Needed for docker-compose.yml — `compose ps` must interpolate
+              # the compose file, which requires the env vars.
+              uses: actions/checkout@v7
+
+            - name: Ensure prod env exists
+              # Same guard as deploy.yml — the scheduled scan runs even when
+              # no deploy happened recently.
+              run: |
+                mkdir -p ~/.kanvan
+                test -f ~/.kanvan/prod.env || cp .env.example ~/.kanvan/prod.env
+
+            - name: Resolve deployed image for ${{ matrix.service }}
+              # NOT the sha from some CI run — the image of the container that
+              # is serving traffic right now.
+              run: |
+                cid=$(docker compose --env-file $HOME/.kanvan/prod.env ps -q ${{ matrix.service }} 2>/dev/null || true)
+                if [ -z "$cid" ]; then
+                  echo "::error::no running ${{ matrix.service }} container found — is prod deployed?"
+                  exit 1
+                fi
+                img=$(docker inspect -f '{{.Config.Image}}' "$cid")
+                echo "DEPLOYED_IMAGE=$img" >> "$GITHUB_ENV"
+                echo "Scanning deployed image: $img"
+
+            - name: Run Trivy on deployed image
+              uses: aquasecurity/trivy-action@v0.36.0
+              with:
+                image-ref: ${{ env.DEPLOYED_IMAGE }}
+                format: 'table'
+                # The gate: a CRITICAL in a deployed image fails the job,
+                # which triggers the Slack alert below.
+                exit-code: '1'
+                ignore-unfixed: true
+                vuln-type: 'os,library'
+                severity: 'CRITICAL'
+
+            - name: Notify Slack on new criticals
+              if: failure()
+              run: |
+                payload=$(printf '{"text":"Scheduled scan: CRITICAL vulnerabilities found in %s (currently deployed in prod) — run https://github.com/%s/actions/runs/%s"}' \
+                  "$DEPLOYED_IMAGE" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+                curl -sf -X POST -H 'Content-Type: application/json' \
+                  -d "$payload" "${{ secrets.SLACK_WEBHOOK_URL }}"
