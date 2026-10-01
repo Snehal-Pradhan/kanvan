@@ -67,7 +67,6 @@ jobs:
                 status=$(curl -sf --config "$RUNNER_TEMP/.sonarcfg" \
                   "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=kanvan") || {
                   echo "Could not reach the SonarQube Web API at \$SONAR_HOST_URL"; exit 0; }
-                rm -f "$RUNNER_TEMP/.sonarcfg"
                 echo "$status" | jq -r '
                   .projectStatus.status as $s
                   | "Gate status: \($s)", "",
@@ -76,6 +75,24 @@ jobs:
                          | "  - \(.status | ascii_upcase): \(.metricKey) — actual \(.actualValue), gate requires \(.comparator) \(.period[0].value)" )
                      end)
                 ' || echo "$status"
+
+                # A count like "new_violations: 1" tells you nothing about WHAT
+                # to fix. List the actual open issues on new code so the log
+                # names the rule and the file:line.
+                echo ""
+                echo "Open issues on new code:"
+                curl -sf --config "$RUNNER_TEMP/.sonarcfg" \
+                  --get --data-urlencode "componentKeys=kanvan" \
+                  --data-urlencode "inNewCodePeriod=true" \
+                  --data-urlencode "resolved=false" \
+                  "$SONAR_HOST_URL/api/issues/search" | jq -r '
+                    (if (.total // 0) == 0 then "  (none)"
+                     else (.issues[] |
+                       "  - [\(.type)/\(.severity)] \(.rule) in \(.component):\(.line // "?")" +
+                       (if .message then "\n      \(.message)" else "" end))
+                     end)
+                  ' || echo "  (could not query issues)"
+                rm -f "$RUNNER_TEMP/.sonarcfg"
                 echo "::endgroup::"
 
             
