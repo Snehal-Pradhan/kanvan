@@ -24,7 +24,7 @@ jobs:
               uses: actions/checkout@v7 
 
             - name: Setup Go
-              uses: actions/setup-go@v6
+              uses: actions/setup-go@v7
               with:
                 # Matrix version only — go-version-file would override it and
                 # silently pin every job to go.mod's version.
