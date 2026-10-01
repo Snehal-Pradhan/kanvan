@@ -60,6 +60,7 @@ jobs:
         uses: ./.github/workflows/dast.yml
         # DAST now gates PROD: it scans the staging deployment of the exact
         # sha-tag; deploy.yml (production) only runs after this passes.
+        secrets: inherit
         needs: [deploy-staging]
 
     deploy:
