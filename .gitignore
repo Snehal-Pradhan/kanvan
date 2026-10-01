@@ -3,6 +3,11 @@ node_modules/
 dist/
 .vite/
 
+# coverage — generated locally and re-uploaded as a CI artifact;
+# committing it just churns the diff on every test run
+frontend/coverage/
+backend/coverage.out
+
 # go
 /backend/devboard-backend
 

@@ -15,6 +15,16 @@ jobs:
             - name: Code Checkout
               uses: actions/checkout@v7
 
+            - name: Download Coverage Reports
+              # code-tests.yml runs first and uploads backend/coverage.out +
+              # frontend/coverage/lcov.info. The quality gate measures coverage
+              # on new code, so the scan MUST see these files — without them
+              # Sonar reports 0% and the gate is red by construction.
+              uses: actions/download-artifact@v7
+              with:
+                  name: coverage-reports
+                  path: .
+
             - name: Cache SonarQube Scanner
               # The scanner binary downloads on every run otherwise.
               uses: actions/cache@v6
@@ -34,5 +44,32 @@ jobs:
               env:
                 SONAR_TOKEN: ${{secrets.SONAR_TOKEN}}
                 SONAR_HOST_URL: ${{secrets.SONAR_HOST_URL}}
+
+            - name: Explain Quality Gate failure
+              # A red gate used to be a dead end: the scanner only prints
+              # "QUALITY GATE STATUS: FAILED" and leaves you to open the
+              # dashboard. This queries the Web API for the gate result of
+              # THIS analysis and prints exactly which conditions failed, so
+              # the log tells you what to fix (and whether it's a code issue
+              # or a condition that needs adjusting in SonarQube's UI).
+              if: failure()
+              env:
+                SONAR_TOKEN: ${{secrets.SONAR_TOKEN}}
+                SONAR_HOST_URL: ${{secrets.SONAR_HOST_URL}}
+              run: |
+                set -u
+                echo "::group::Quality gate detail"
+                status=$(curl -sf -u "$SONAR_TOKEN:" \
+                  "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=kanvan") || {
+                  echo "Could not reach the SonarQube Web API at \$SONAR_HOST_URL"; exit 0; }
+                echo "$status" | jq -r '
+                  .projectStatus.status as $s
+                  | "Gate status: \($s)", "",
+                    (if $s == "OK" then "Gate passed." else
+                       ( .projectStatus.conditions[]
+                         | "  - \(.status | ascii_upcase): \(.metricKey) — actual \(.actualValue), gate requires \(.comparator) \(.period[0].value)" )
+                     end)
+                ' || echo "$status"
+                echo "::endgroup::"
 
             
