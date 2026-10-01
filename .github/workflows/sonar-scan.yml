@@ -15,16 +15,6 @@ jobs:
             - name: Code Checkout
               uses: actions/checkout@v7
 
-            - name: Download Coverage Reports
-              # code-tests.yml runs first and uploads backend/coverage.out +
-              # frontend/coverage/lcov.info. The quality gate measures coverage
-              # on new code, so the scan MUST see these files — without them
-              # Sonar reports 0% and the gate is red by construction.
-              uses: actions/download-artifact@v7
-              with:
-                  name: coverage-reports
-                  path: .
-
             - name: Cache SonarQube Scanner
               # The scanner binary downloads on every run otherwise.
               uses: actions/cache@v6

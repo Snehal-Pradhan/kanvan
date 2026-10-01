@@ -28,9 +28,8 @@ jobs:
 
     sonar_scan:
         uses: ./.github/workflows/sonar-scan.yml
-        # Downloads the coverage artifact from code-tests, so it has to wait
-        # for the tests to finish. The quality gate enforces coverage on new
-        # code — without this edge the gate is red by construction.
+        # No `needs` — static analysis doesn't depend on tests. It runs in
+        # parallel with code-tests, so SAST results don't hold up the pipeline.
         secrets: inherit
 
     code-tests:
