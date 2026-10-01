@@ -24,7 +24,7 @@ jobs:
                 restore-keys: sonar-scanner
 
             - name: SonarQube Scan
-              uses: SonarSource/sonarqube-scan-action@v8.2.0
+              uses: SonarSource/sonarqube-scan-action@v8.2.2
               with:
                 # Make the quality gate BINDING: the job polls SonarQube for
                 # the gate result and FAILS if it's red. Without this, the
