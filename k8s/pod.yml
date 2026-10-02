@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kanvan-frontend 
+  namespace: kanvan
+spec:
+  containers:
+    - name: devboard-frontend
+      image: snehalpradhan/kanvan-frontend:latest
+      ports:
+      - containerPort: 8080

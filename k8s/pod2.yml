@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: kanvan
+spec:
+  ports:
+  - port: 8080 # Change this to whatever port your backend runs on
+  selector:
+    app: backend-app # Matches the labels on your backend pod
+

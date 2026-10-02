@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kanvan-frontend-deployment
+  namespace: kanvan
+  labels:
+    app: kanvan-frontend 
+spec:
+  replicas: 5
+  selector: 
+    matchLabels:
+      app: kanvan-frontend
+  template:
+    metadata:
+      labels:
+        app: kanvan-frontend
+    spec:
+      containers:
+      - name: kanvan
+        image: snehalpradhan/kanvan-frontend:latest
+        ports:
+        - containerPort: 8080
+
