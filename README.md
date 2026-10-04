@@ -1,4 +1,4 @@
-# Kanvan — Advanced (UI + Go + Postgres)
+# Kanvan
 
 This is the same Kanvan UI as the `master` branch, but now the data comes
 from a **real backend** instead of fake in-memory data.
