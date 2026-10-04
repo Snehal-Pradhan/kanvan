@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kanvan-config
+  namespace: kanvan
+data:
+  POSTGRES_USER: devboard
+  POSTGRES_DB: devboard
+  PORT: "8080"

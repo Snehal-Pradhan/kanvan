@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kanvan-backend
+  namespace: kanvan
+  labels:
+    app: kanvan-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kanvan-backend
+  template:
+    metadata:
+      labels:
+        app: kanvan-backend
+    spec:
+      containers:
+      - name: backend
+        image: snehalpradhan/kanvan-backend:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: kanvan-config
+              key: PORT
+        - name: POSTGRES_URL
+          valueFrom:
+            secretKeyRef:
+              name: kanvan-db
+              key: POSTGRES_URL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 30
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3

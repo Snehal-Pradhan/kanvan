@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kanvan-frontend-deployment
+  namespace: kanvan
+  labels:
+    app: kanvan-frontend
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: kanvan-frontend
+  template:
+    metadata:
+      labels:
+        app: kanvan-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: snehalpradhan/kanvan-frontend:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        ports:
+        - containerPort: 4173
+          name: http
+        startupProbe:
+          httpGet:
+            path: /
+            port: 4173
+          initialDelaySeconds: 3
+          periodSeconds: 3
+          failureThreshold: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4173
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4173
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
